@@ -9,7 +9,7 @@ class Classifier(tf.keras.Model):
     Args:
       encoder: a tf.keras.Model defines an encoder network.
       max_seq_length: maximum sequence length.
-      poolining: poolining mechanism. One of [encoder_pooled_output, mean, max].
+      poolining: poolining mechanism. One of [cls, mean, max].
       compute_similarity: how to compute the similarity probability outputs.
         One of [cosine_similarity, dense].
   """
@@ -56,15 +56,16 @@ class Classifier(tf.keras.Model):
     expanded_right_mask = tf.expand_dims(
         tf.cast(right_mask, dtype=tf.float32), axis=2)
     # Get sequence embeddings
-    left_sequence_output, left_pooled_output = encoder(left_inputs)
-    right_sequence_output, right_pooled_output = encoder(right_inputs)
+    left_sequence_output, left_cls_output = encoder(left_inputs)
+    right_sequence_output, right_cls_output = encoder(right_inputs)
     left_sequence_output = left_sequence_output * expanded_left_mask
     right_sequence_output = right_sequence_output * expanded_right_mask
 
     # Pooling
-    if pooling == 'encoder_pooled_output':
-      left_outputs = left_pooled_output
-      right_outputs = right_pooled_output
+    if pooling == 'cls':
+      # Outputs on the first token 'CLs'
+      left_outputs = left_cls_output
+      right_outputs = right_cls_output
     elif pooling == 'mean':
       left_outputs = tf.reduce_sum(
           left_sequence_output, axis=1) / tf.reduce_sum(expanded_left_mask, axis=1)

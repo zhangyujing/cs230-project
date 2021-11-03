@@ -56,12 +56,10 @@ class Classifier(tf.keras.Model):
     expanded_right_mask = tf.expand_dims(
         tf.cast(right_mask, dtype=tf.float32), axis=2)
     # Get sequence embeddings
-    left_encoder_ouputs = encoder(left_inputs)
-    right_encoder_ouputs = encoder(right_inputs)
-    left_sequence_output = left_encoder_ouputs[0] * expanded_left_mask
-    right_sequence_output = right_encoder_ouputs[0] * expanded_right_mask
-    left_pooled_output = left_encoder_ouputs[1]
-    right_pooled_output = right_encoder_ouputs[1]
+    left_sequence_output, left_pooled_output = encoder(left_inputs)
+    right_sequence_output, right_pooled_output = encoder(right_inputs)
+    left_sequence_output = left_sequence_output * expanded_left_mask
+    right_sequence_output = right_sequence_output * expanded_right_mask
 
     # Pooling
     if pooling == 'encoder_pooled_output':
@@ -69,11 +67,9 @@ class Classifier(tf.keras.Model):
       right_outputs = right_pooled_output
     elif pooling == 'mean':
       left_outputs = tf.reduce_sum(
-          left_sequence_output, axis=1) / tf.reduce_sum(
-              expanded_left_mask, axis=1)
+          left_sequence_output, axis=1) / tf.reduce_sum(expanded_left_mask, axis=1)
       right_outputs = tf.reduce_sum(
-          right_sequence_output, axis=1) / tf.reduce_sum(
-              expanded_right_mask, axis=1)
+          right_sequence_output, axis=1) / tf.reduce_sum(expanded_right_mask, axis=1)
     elif pooling == 'max':
       left_outputs = tf.reduce_max(left_sequence_output, axis=1)
       right_outputs = tf.reduce_max(right_sequence_output, axis=1)

@@ -10,8 +10,8 @@ class Classifier(tf.keras.Model):
       encoder: a tf.keras.Model defines an encoder network.
       max_seq_length: maximum sequence length.
       poolining: poolining mechanism. One of [encoder_pooled_output, mean, max].
-      compute_probability: how to compute the probability outputs. One of
-        [cosine_similarity, dense].
+      compute_similarity: how to compute the similarity probability outputs.
+        One of [cosine_similarity, dense].
   """
 
   def __init__(self,
@@ -19,11 +19,11 @@ class Classifier(tf.keras.Model):
                max_seq_length,
                dropout_rate=0.1,
                pooling='mean',
-               compute_probability='dense',
+               compute_similarity='dense',
                **kwargs):
     self.max_seq_length = max_seq_length
     self.pooling = pooling
-    self.compute_probability = compute_probability
+    self.compute_similarity = compute_similarity
 
     left_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='left_word_ids')
@@ -75,13 +75,13 @@ class Classifier(tf.keras.Model):
     else:
       raise ValueError('Pooling %s is not supported: %s' % pooling)
 
-    if compute_probability == 'cosine_similarity':
+    if compute_similarity == 'cosine_similarity':
       cos_similarity = tf.reduce_sum(
           tf.nn.l2_normalize(left_outputs, axis=1) *
           tf.nn.l2_normalize(right_outputs, axis=1),
           axis=1)
       prob = (cos_similarity + 1) / 2
-    elif compute_probability == 'dense':
+    elif compute_similarity == 'dense':
       concat_outputs = tf.concat(
           [left_outputs, right_outputs,
            tf.abs(left_outputs - right_outputs)],
@@ -89,8 +89,8 @@ class Classifier(tf.keras.Model):
       outputs = tf.keras.layers.Dense(64, activation='relu')(concat_outputs)
       prob = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
     else:
-      raise ValueError('compute_probability %s is not supported: %s' %
-                       compute_probability)
+      raise ValueError('compute_similarity %s is not supported: %s' %
+                       compute_similarity)
 
     super(Classifier, self).__init__(inputs=inputs, outputs=prob, **kwargs)
     self._encoder = encoder
@@ -99,7 +99,7 @@ class Classifier(tf.keras.Model):
         'encoder': self._encoder,
         'max_seq_length': self.max_seq_length,
         'pooling': self.pooling,
-        'compute_probability': self.compute_probability
+        'compute_similarity': self.compute_similarity
     }
     config_cls = collections.namedtuple('Config', config_dict.keys())
     self._config = config_cls(**config_dict)

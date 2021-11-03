@@ -25,6 +25,7 @@ class Classifier(tf.keras.Model):
     self.pooling = pooling
     self.compute_similarity = compute_similarity
 
+    # Prepare inputs
     left_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='left_word_ids')
     left_mask = tf.keras.layers.Input(
@@ -54,11 +55,15 @@ class Classifier(tf.keras.Model):
         tf.cast(left_mask, dtype=tf.float32), axis=2)
     expanded_right_mask = tf.expand_dims(
         tf.cast(right_mask, dtype=tf.float32), axis=2)
-    left_sequence_output = encoder(left_inputs)[0] * expanded_left_mask
-    right_sequence_output = encoder(right_inputs)[0] * expanded_right_mask
-    left_pooled_output = encoder(left_inputs)[1]
-    right_pooled_output = encoder(right_inputs)[1]
+    # Get sequence embeddings
+    left_encoder_ouputs = encoder(left_inputs)
+    right_encoder_ouputs = encoder(right_inputs)
+    left_sequence_output = left_encoder_ouputs[0] * expanded_left_mask
+    right_sequence_output = right_encoder_ouputs[0] * expanded_right_mask
+    left_pooled_output = left_encoder_ouputs[1]
+    right_pooled_output = right_encoder_ouputs[1]
 
+    # Pooling
     if pooling == 'encoder_pooled_output':
       left_outputs = left_pooled_output
       right_outputs = right_pooled_output
@@ -75,6 +80,7 @@ class Classifier(tf.keras.Model):
     else:
       raise ValueError('Pooling %s is not supported: %s' % pooling)
 
+    # Compute similarity
     if compute_similarity == 'cosine_similarity':
       cos_similarity = tf.reduce_sum(
           tf.nn.l2_normalize(left_outputs, axis=1) *

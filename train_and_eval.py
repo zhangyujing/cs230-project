@@ -96,8 +96,8 @@ def run_classifier(strategy, model_dir, epochs, steps_per_epoch, eval_steps,
     evaluation_dataset = eval_input_fn() if eval_input_fn else None
     enc = networks.BertEncoder(
         vocab_size=FLAGS.vocab_size, num_layers=12, type_vocab_size=2)
-    classifier = model.Classifier(enc, max_seq_length, pooling,
-                                  compute_similarity)
+    classifier = model.Classifier(enc, max_seq_length, pooling=pooling,
+                                  compute_similarity=compute_similarity)
     classifier.optimizer = optimization.create_optimizer(
         FLAGS.learning_rate, steps_per_epoch * epochs, warmup_steps)
     optimizer = classifier.optimizer
@@ -214,7 +214,8 @@ def run():
     with strategy.scope():
       enc = networks.BertEncoder(
           vocab_size=FLAGS.vocab_size, num_layers=12, type_vocab_size=2)
-      classifier = model.Classifier(enc, FLAGS.max_seq_length)
+      classifier = model.Classifier(enc, FLAGS.max_seq_length, pooling=FLAGS.pooling,
+                                    compute_similarity=FLAGS.compute_similarity)
       checkpoint = tf.train.Checkpoint(model=classifier)
       latest_checkpoint_file = (
           init_checkpoint or tf.train.latest_checkpoint(FLAGS.model_dir))

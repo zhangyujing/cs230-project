@@ -31,8 +31,8 @@ flags.DEFINE_string('tpu', None, 'TPU address.')
 
 # Model parameters
 flags.DEFINE_integer('max_seq_length', 128, 'Maximum sequence length.')
-flags.DEFINE_enum('pooling', 'mean', '[cls, mean, max]')
-flags.DEFINE_enum('compute_similarity', 'dense', '[cosine_similarity, dense]')
+flags.DEFINE_enum('pooling', 'mean', ['cls', 'mean', 'max'], 'Pooling mechanism.')
+flags.DEFINE_enum('compute_similarity', 'dense', ['cosine_similarity', 'dense'], 'Similarity measures.')
 flags.DEFINE_float('learning_rate', 3e-5, 'learning rate.')
 flags.DEFINE_integer('vocab_size', 30522, 'Vocalubary size.')
 

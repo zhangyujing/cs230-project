@@ -9,7 +9,7 @@ from absl import flags
 from absl import logging
 import tensorflow as tf
 
-from google3.third_party.tensorflow_models.official.nlp.bert import tokenization
+from official.nlp.bert import tokenization
 
 flags.DEFINE_string("input_file", "", "Path of input tsv file.")
 flags.DEFINE_string("output_file", "",  "Path of output file.")

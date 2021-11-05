@@ -84,6 +84,10 @@ class Classifier(tf.keras.Model):
           tf.nn.l2_normalize(right_outputs, axis=1),
           axis=1)
       prob = (cos_similarity + 1) / 2
+    elif compute_similarity == 'scaled_l1':
+      prob = tf.exp(-tf.reduce_sum(tf.abs(
+        tf.nn.l2_normalize(left_outputs, axis=1) - tf.nn.l2_normalize(right_outputs, axis=1)),
+                                   axis=1))
     elif compute_similarity == 'dense':
       concat_outputs = tf.concat(
           [left_outputs, right_outputs,

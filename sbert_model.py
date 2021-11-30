@@ -29,6 +29,8 @@ class Classifier(tf.keras.Model):
                dropout_rate=0.1,
                pooling='mean',
                compute_similarity='dense',
+               question_word_penalty_weight='0.0',
+               pred_threshold='0.5',
                **kwargs):
     self.max_seq_length = max_seq_length
     self.pooling = pooling
@@ -49,6 +51,11 @@ class Classifier(tf.keras.Model):
         shape=(max_seq_length,), dtype=tf.int32, name='right_mask')
     right_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='right_type_ids')
+  
+   # Normally the question word is the second token.
+   left_q_word = tf.slice(left_word_ids, [0, 1], [-1, 1])
+   right_q_word = tf.slice(right_word_ids, [0, 1], [-1, 1])
+   question_word_diff = tf.cast(tf.not_equal(left_q_word, right_q_word), tf.float32)
 
     right_inputs = [right_word_ids, right_mask, right_type_ids]
     inputs = {
@@ -123,6 +130,9 @@ class Classifier(tf.keras.Model):
     else:
       raise ValueError('compute_similarity %s is not supported: %s' %
                        compute_similarity)
+   
+    penalty = tf.cast(tf.greater(prob, pred_threshold), dtype=tf.float32) * question_word_diff
+    prob = prob - question_word_penalty_weight * penalty
 
     super(Classifier, self).__init__(inputs=inputs, outputs=prob, **kwargs)
     self._encoder = encoder
@@ -203,12 +213,12 @@ class SSLClassifier(tf.keras.Model):
         'right_input_mask': right_mask,
         'right_input_type_ids': right_type_ids
     }
-    prob1 = classifier(orig_inputs)
-    prob2 = classifier(ssl_inputs)
+    main_p = classifier(orig_inputs)
+    ssl_p = classifier(ssl_inputs)
 
     outputs = {}
-    outputs['main'] = prob1
-    outputs['ssl'] = prob2
+    outputs['main_p'] = main_p
+    outputs['ssl_p'] = ssl_p
     super(SSLClassifier, self).__init__(inputs=inputs, outputs=outputs, **kwargs)
     self._classifier = classifier
 

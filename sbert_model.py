@@ -18,7 +18,7 @@ class Classifier(tf.keras.Model):
     Args:
       encoder: a tf.keras.Model defines an encoder network.
       max_seq_length: maximum sequence length.
-      poolining: poolining mechanism. One of [cls, mean, max].
+      poolining: poolining mechanism. One of [cls, mean, max, mean_max, strided_mean].
       compute_similarity: how to compute the similarity probability outputs.
         One of [cosine_similarity, dense].
   """

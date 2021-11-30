@@ -126,6 +126,8 @@ class Classifier(tf.keras.Model):
            tf.abs(left_outputs - right_outputs)],
           axis=1)
       outputs = tf.keras.layers.Dense(64, activation='relu')(concat_outputs)
+      # skip connection on question words
+      # outputs = tf.concat([outputs, question_word_diff], axis=1)
       prob = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
     else:
       raise ValueError('compute_similarity %s is not supported: %s' %

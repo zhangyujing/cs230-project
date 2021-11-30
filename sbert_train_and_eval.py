@@ -31,10 +31,13 @@ flags.DEFINE_string('tpu', None, 'TPU address.')
 
 # Model parameters
 flags.DEFINE_integer('max_seq_length', 128, 'Maximum sequence length.')
-flags.DEFINE_enum('pooling', 'mean', ['cls', 'mean', 'max'], 'Pooling mechanism.')
+flags.DEFINE_enum('pooling', 'mean', ['cls', 'mean', 'max', 'mean_max', 'strided_mean'], 'Pooling mechanism.')
 flags.DEFINE_enum('compute_similarity', 'dense', ['cosine_similarity', 'dense', 'scaled_l1'], 'Similarity measures.')
 flags.DEFINE_float('learning_rate', 3e-5, 'learning rate.')
 flags.DEFINE_integer('vocab_size', 30522, 'Vocalubary size.')
+
+flags.DEFINE_float('dynamic_masking_rate', 0.0, 'If > 0, the SSL auxilary task is enabled with dynamic masking.')
+flags.DEFINE_float('question_word_penalty_weight', 0.0, 'Question word penalty weight during evaluation.')
 
 FLAGS = flags.FLAGS
 
@@ -96,8 +99,13 @@ def run_classifier(strategy, model_dir, epochs, steps_per_epoch, eval_steps,
     evaluation_dataset = eval_input_fn() if eval_input_fn else None
     enc = networks.BertEncoder(
         vocab_size=FLAGS.vocab_size, num_layers=12, type_vocab_size=2)
-    classifier = model.Classifier(enc, max_seq_length, pooling=pooling,
-                                  compute_similarity=compute_similarity)
+    base_classifier = model.Classifier(enc, max_seq_length, pooling=pooling,
+                                       compute_similarity=compute_similarity)
+    if FLAGS.dynamic_masking_rate > 0:
+      classifier = model.SSLClassifier(base_classifier, max_seq_length,
+                                       FLAGS.dynamic_masking_rate)
+    else:
+      classifer = base_classifier
     classifier.optimizer = optimization.create_optimizer(
         FLAGS.learning_rate, steps_per_epoch * epochs, warmup_steps)
     optimizer = classifier.optimizer
@@ -108,11 +116,25 @@ def run_classifier(strategy, model_dir, epochs, steps_per_epoch, eval_steps,
       bert_checkpoint.restore(
           init_checkpoint).assert_existing_objects_matched().run_restore_ops()
       logging.info('load ckpt done')
+ 
+    if FLAGS.dynamic_masking_rate > 0:
+      loss_weights = {}
+      loss_weights['main_p'] = 1.0
+      loss_weights['ssl_p'] = 0.1
+      losses = {}
+      losses['main_p'] = loss_fn
+      losses['ssl_p'] = loss_fn
+      metrics = [fn() for fn in metric_fn]
+    else:
+      loss_weights = None
+      losses = loss_fn
+      metrics = {'main_p': [fn() for fn in metric_fn] }     
 
     classifier.compile(
         optimizer=optimizer,
-        loss=loss_fn,
-        metrics=[fn() for fn in metric_fn],
+        loss=losses,
+        loss_weights=loss_weights,
+        metrics=metrics,
         steps_per_execution=100)
 
     summary_dir = os.path.join(model_dir, 'summaries')
@@ -174,6 +196,8 @@ def get_predictions_and_labels(strategy, trained_model, eval_input_fn):
       """Replicated predictions."""
       inputs, labels = inputs
       probabilities = trained_model(inputs, training=False)
+      if FLAGS.dynamic_masking_rate > 0:
+        probabilities = probabilities['main_p']
       return probabilities, labels
 
     outputs, labels = strategy.run(_predict_step_fn, args=(next(iterator),))
@@ -214,8 +238,14 @@ def run():
     with strategy.scope():
       enc = networks.BertEncoder(
           vocab_size=FLAGS.vocab_size, num_layers=12, type_vocab_size=2)
-      classifier = model.Classifier(enc, FLAGS.max_seq_length, pooling=FLAGS.pooling,
-                                    compute_similarity=FLAGS.compute_similarity)
+      base_classifier = model.Classifier(enc, FLAGS.max_seq_length, pooling=FLAGS.pooling,
+                                         compute_similarity=FLAGS.compute_similarity,
+                                         question_word_penalty_weight=FLAGS.question_word_penalty_weight)
+      if FLAGS.dynamic_masking_rate > 0:
+        classifier = model.SSLClassifier(base_classifier, max_seq_length,
+                                         FLAGS.dynamic_masking_rate)
+      else:
+        classifer = base_classifier
       checkpoint = tf.train.Checkpoint(model=classifier)
       latest_checkpoint_file = (
           init_checkpoint or tf.train.latest_checkpoint(FLAGS.model_dir))

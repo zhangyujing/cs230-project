@@ -37,7 +37,10 @@ flags.DEFINE_float('learning_rate', 3e-5, 'learning rate.')
 flags.DEFINE_integer('vocab_size', 30522, 'Vocalubary size.')
 
 flags.DEFINE_float('dynamic_masking_rate', 0.0, 'If > 0, the SSL auxilary task is enabled with dynamic masking.')
+
+# Eval parameters
 flags.DEFINE_float('question_word_penalty_weight', 0.0, 'Question word penalty weight during evaluation.')
+flags.DEFINE_float('pred_threshold', 0.5, 'Threshold for similarity prediction.')
 
 FLAGS = flags.FLAGS
 
@@ -240,7 +243,8 @@ def run():
           vocab_size=FLAGS.vocab_size, num_layers=12, type_vocab_size=2)
       base_classifier = model.Classifier(enc, FLAGS.max_seq_length, pooling=FLAGS.pooling,
                                          compute_similarity=FLAGS.compute_similarity,
-                                         question_word_penalty_weight=FLAGS.question_word_penalty_weight)
+                                         question_word_penalty_weight=FLAGS.question_word_penalty_weight,
+                                         pred_threshold=FLAGS.pred_threshold)
       if FLAGS.dynamic_masking_rate > 0:
         classifier = model.SSLClassifier(base_classifier, max_seq_length,
                                          FLAGS.dynamic_masking_rate)

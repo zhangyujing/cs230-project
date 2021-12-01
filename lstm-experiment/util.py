@@ -1,3 +1,4 @@
+"""Util functions for LSTM."""
 
 import re
 from tensorflow.python.keras import backend as K
